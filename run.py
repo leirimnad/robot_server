@@ -29,10 +29,11 @@ class MessageState(State):
         super().__init__(*args, **kwargs)
         supported_messages = supported_messages if supported_messages is not None else []
         self.supported_messages: list[ClientMessage] = supported_messages if isinstance(supported_messages,
-                                                                                        list) else []
+                                                                                        list) else [supported_messages]
 
-    def matches_length(self, **kwargs):
-        return any(m.length_check(**kwargs) for m in self.supported_messages)
+    def used_all_length(self, **kwargs):
+        print(f"{self.supported_messages=}")
+        return all(m.used_length(**kwargs) for m in self.supported_messages)
 
 
 class RobotThread(Thread):
@@ -148,11 +149,21 @@ class RobotThread(Thread):
 
                 self.message_stack += text
 
+                if not ClientMessages.matches_message(self.message_stack, self.end_sequence) \
+                        and self.machine.get_state(self.state).used_all_length(message=self.message_stack):
+                    self.send(ServerMessages.SERVER_SYNTAX_ERROR)
+                    self.conn.close()
+                    return
+
                 while ClientMessages.matches_message(self.message_stack, self.end_sequence):
                     message, rest = ClientMessages.parse_message(self.message_stack, self.end_sequence)
                     self.message_stack = rest
                     print(f"{self.address} >=> {message}")
-                    self.process_message(message=message[:-len(self.end_sequence)])
+                    trimmed_message = message[:-len(self.end_sequence)]
+
+
+
+                    self.process_message(message=trimmed_message)
                     print(f"{self.address} () State now: {self.state}")
 
         except socket.timeout:
