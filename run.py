@@ -129,16 +129,15 @@ class RobotThread(Thread):
                     self.conn.close()
                     return
 
-                text = self.message_stack + text
+                self.message_stack += text
 
-                if self.client_checks.matches_message(text):
-                    message, rest = self.client_checks.parse_message(text)
+                while self.client_checks.matches_message(self.message_stack):
+                    message, rest = self.client_checks.parse_message(self.message_stack)
                     self.message_stack = rest
+                    print(f"{self.address} >=> {message}")
                     self.process_message(message=message)
-                else:
-                    self.message_stack = text
+                    print(f"{self.address} () State now: {self.state}")
 
-                print(f"{self.address} () State now: {self.state}")
         except socket.timeout:
             print(f"{self.address} Timeout, disconnecting")
             self.conn.close()
