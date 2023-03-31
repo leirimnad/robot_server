@@ -20,6 +20,9 @@ client_keys = {
     4: 21952
 }
 
+TIMEOUT = 1
+TIMEOUT_RECHARGING = 5
+
 
 class RobotThread(Thread):
     end_sequence = b"\a\b"
@@ -114,16 +117,22 @@ class RobotThread(Thread):
 
     def run(self):
         print(f"Thread working with address {self.address}")
-        while True:
-            if self.stop_flag:
-                return
-            text = conn.recv(1024)
-            print(f"{self.address} >>> {text}")
-            if text == b"":
-                self.conn.close()
-                return
-            self.process_message(message=text)
-            print(f"{self.address} () State now: {self.state}")
+        conn.settimeout(TIMEOUT)
+        try:
+            while True:
+                if self.stop_flag:
+                    return
+                text = conn.recv(1024)
+                print(f"{self.address} >>> {text}")
+                if text == b"":
+                    self.conn.close()
+                    return
+                self.process_message(message=text)
+                print(f"{self.address} () State now: {self.state}")
+        except socket.timeout:
+            print(f"{self.address} Timeout, disconnecting")
+            self.conn.close()
+            return
 
 
 if __name__ == "__main__":
