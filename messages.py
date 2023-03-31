@@ -41,7 +41,7 @@ class ClientMessages:
         return re.match(re_str + (self.end_sequence if add_end else b''), kwargs.get(self.arg_name)) is not None
 
     def username(self, **kwargs):
-        return self._re_check(b".{1,20}", **kwargs) \
+        return self._re_check(b".{1,18}", **kwargs) \
             and not self._re_check(self.end_sequence + b".", add_end=False, full_match=False, **kwargs)
 
     def key_id(self, **kwargs):
