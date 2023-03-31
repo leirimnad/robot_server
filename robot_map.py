@@ -55,10 +55,11 @@ class RobotMap:
     def update_position(self, position: tuple) -> Action:
         res = self._update_position(position)
         self.previous_action = res
-        if res == Action.TURN_LEFT:
-            self.rotation = Rotation((self.rotation.value + 3) % 4)
-        elif res == Action.TURN_RIGHT:
-            self.rotation = Rotation((self.rotation.value + 1) % 4)
+        if self.rotation is not None:
+            if res == Action.TURN_LEFT:
+                self.rotation = Rotation((self.rotation.value + 3) % 4)
+            elif res == Action.TURN_RIGHT:
+                self.rotation = Rotation((self.rotation.value + 1) % 4)
         return res
 
     def _update_position(self, new_position: tuple) -> Action:
@@ -71,7 +72,14 @@ class RobotMap:
         if prev_position is None:
             return Action.MOVE
         elif self.rotation is None:  # determine rotation
-            self.rotation = Rotation.from_coordinate(add_lists(new_position, prev_position, b_mult=-1))[0]
+            coordinate = add_lists(new_position, prev_position, b_mult=-1)
+            if coordinate == (0, 0):
+                if self.previous_action == Action.MOVE:  # unable to determine rotation due to an obstacle
+                    return Action.TURN_RIGHT
+                else:
+                    return Action.MOVE
+
+            self.rotation = Rotation.from_coordinate(coordinate)[0]
 
         next_position = add_lists(new_position, self.rotation.to_coordinate())
         available_rotations = set(map(Rotation.opposite, Rotation.from_coordinate(new_position)))
