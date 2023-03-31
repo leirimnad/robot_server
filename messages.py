@@ -40,6 +40,13 @@ class ClientMessages:
             return re.fullmatch(re_str + (self.end_sequence if add_end else b''), kwargs.get(self.arg_name)) is not None
         return re.match(re_str + (self.end_sequence if add_end else b''), kwargs.get(self.arg_name)) is not None
 
+    def matches_message(self, message: bytes):
+        return re.match(b"^.*?"+self.end_sequence, message) is not None
+
+    def parse_message(self, message):
+        match = re.match(b"^.*?"+self.end_sequence, message)
+        return match.group(0), message[match.end():]
+
     def username(self, **kwargs):
         return self._re_check(b".{1,18}", **kwargs) \
             and not self._re_check(self.end_sequence + b".", add_end=False, full_match=False, **kwargs)
@@ -59,7 +66,7 @@ class ClientMessages:
     def ok(self, **kwargs):
         return self._re_check(b"OK -?\d{1,4} -?\d{1,4}", **kwargs) and self._re_check(b".{1,12}", **kwargs)
 
-    def message(self, **kwargs):
+    def picked_message(self, **kwargs):
         return self._re_check(b".{1,98}", **kwargs) \
             and not self._re_check(self.end_sequence + b".", add_end=False, full_match=False, **kwargs)
 

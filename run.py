@@ -34,6 +34,7 @@ class RobotThread(Thread):
         Thread.__init__(self)
         self.conn = connection
         self.address = address
+        self.message_stack = b""
 
         self.robot_username = None
         self.key_id = None
@@ -64,7 +65,7 @@ class RobotThread(Thread):
                                     conditions=self.client_checks.ok)
 
         self.machine.add_transition('process_message', 'wait_message', 'final',
-                                    conditions=self.client_checks.message,
+                                    conditions=self.client_checks.picked_message,
                                     before=lambda **kwargs: self.send(ServerMessages.SERVER_LOGOUT))
 
         self.machine.add_transition('process_message',
@@ -127,7 +128,16 @@ class RobotThread(Thread):
                 if text == b"":
                     self.conn.close()
                     return
-                self.process_message(message=text)
+
+                text = self.message_stack + text
+
+                if self.client_checks.matches_message(text):
+                    message, rest = self.client_checks.parse_message(text)
+                    self.message_stack = rest
+                    self.process_message(message=message)
+                else:
+                    self.message_stack = text
+
                 print(f"{self.address} () State now: {self.state}")
         except socket.timeout:
             print(f"{self.address} Timeout, disconnecting")
