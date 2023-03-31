@@ -1,8 +1,8 @@
 import socket
-import re
 from threading import Thread
 from transitions import Machine
 from messages import ServerMessages, ClientMessages
+from robot_map import RobotMap
 
 server_keys = {
     0: 23019,
@@ -23,7 +23,8 @@ client_keys = {
 
 class RobotThread(Thread):
     end_sequence = b"\a\b"
-    states = ['wait_username', 'wait_key_id', 'wait_confirmation', 'wait_initial_client_ok', 'wait_client_ok', 'final']
+    states = ['wait_username', 'wait_key_id', 'wait_confirmation', 'wait_initial_client_ok',
+              'wait_client_ok', 'wait_message', 'final']
     client_checks = ClientMessages(end_sequence=end_sequence, arg_name="message")
 
     def __init__(self, connection, address):
@@ -33,10 +34,9 @@ class RobotThread(Thread):
 
         self.robot_username = None
         self.key_id = None
-        self.server_hash = None
+        self.username_hash = None
         self.stop_flag = False
-        self.position = None
-        self.rotation = None
+        self.robot_map = RobotMap()
 
         self.machine = Machine(model=self, states=RobotThread.states, initial='wait_username')
         self.machine.add_transition('process_message', 'wait_username', 'wait_key_id',
@@ -50,26 +50,32 @@ class RobotThread(Thread):
                                     )
 
         self.machine.add_transition('process_message', 'wait_confirmation', 'wait_initial_client_ok',
-                                    conditions=self.check_client_hash)
+                                    conditions=[self.client_checks.confirmation_syntax, self.check_client_hash])
         self.machine.add_transition('process_message', 'wait_confirmation', 'final',
                                     conditions=self.client_checks.confirmation_syntax,
                                     before=lambda **kwargs: self.send(ServerMessages.SERVER_LOGIN_FAILED))
 
-        self.machine.add_transition('process_message', 'wait_initial_client_ok', 'wait_client_ok',
+        self.machine.add_transition('process_message', ['wait_initial_client_ok', 'wait_client_ok'], 'wait_message',
+                                    conditions=self.client_checks.ok_center)
+        self.machine.add_transition('process_message', ['wait_initial_client_ok', 'wait_client_ok'], 'wait_client_ok',
                                     conditions=self.client_checks.ok)
+
+        self.machine.add_transition('process_message', 'wait_message', 'final',
+                                    conditions=self.client_checks.message,
+                                    before=lambda **kwargs: self.send(ServerMessages.SERVER_LOGOUT))
 
         self.machine.add_transition('process_message',
                                     "*", 'final',
                                     before=lambda **kwargs: self.send(ServerMessages.SERVER_SYNTAX_ERROR))
 
     def on_enter_wait_key_id(self, **kwargs):
-        self.robot_username = (re.match(b"(.{1,20})" + self.end_sequence, kwargs.get("message")).group(1)).decode()
+        self.robot_username = self.client_checks.parse_username(**kwargs)
         self.send(ServerMessages.SERVER_KEY_REQUEST)
 
     def on_enter_wait_confirmation(self, **kwargs):
-        self.key_id = int(re.match(b"([01234])" + self.end_sequence, kwargs.get("message")).group(1))
-        self.server_hash = self.compute_server_hash(self.robot_username, server_keys.get(self.key_id))
-        self.send(ServerMessages.server_confirmation(self.server_hash))
+        self.key_id = self.client_checks.parse_key(**kwargs)
+        self.username_hash = self.compute_username_hash(self.robot_username)
+        self.send(ServerMessages.server_confirmation(self.compute_server_hash()))
 
     def on_enter_wait_initial_client_ok(self, **kwargs):
         self.send(ServerMessages.SERVER_OK)
@@ -77,9 +83,10 @@ class RobotThread(Thread):
 
     def on_enter_wait_client_ok(self, **kwargs):
         new_position = self.client_checks.parse_position(**kwargs)
-        if new_position == self.position:  # obstacle
-            pass
-        
+        self.send(ServerMessages.from_action(self.robot_map.update_position(new_position)))
+
+    def on_enter_wait_message(self, **kwargs):
+        self.send(ServerMessages.SERVER_PICK_UP)
 
     def on_enter_final(self, **kwargs):
         self.conn.close()
@@ -87,18 +94,19 @@ class RobotThread(Thread):
         print(f"{self.address} Disconnected, stopping thread.")
 
     def check_client_hash(self, **kwargs) -> bool:
-        return kwargs.get("message") == str(self.compute_client_hash(
-            self.server_hash,
-            client_keys.get(self.key_id)
-        )).encode() + self.end_sequence
+        client_hash = self.client_checks.parse_confirmation(**kwargs)
+        right_hash = self.compute_client_hash()
+        return client_hash == right_hash
 
     @staticmethod
-    def compute_server_hash(username: str, server_key: int) -> int:
-        return (((sum(ord(c) for c in username) * 1000) % 65536) + server_key) % 65536
+    def compute_username_hash(username: str) -> int:
+        return (sum(ord(c) for c in username) * 1000) % 65536
 
-    @staticmethod
-    def compute_client_hash(server_hash: int, client_key: int) -> int:
-        return (server_hash + client_key) % 65536
+    def compute_server_hash(self) -> int:
+        return (self.username_hash + server_keys.get(self.key_id)) % 65536
+
+    def compute_client_hash(self) -> int:
+        return (self.username_hash + client_keys.get(self.key_id)) % 65536
 
     def send(self, bytestring: bytes):
         print(f"{self.address} <<< {bytestring}")
