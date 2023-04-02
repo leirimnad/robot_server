@@ -14,6 +14,7 @@ class ServerMessages:
     SERVER_TURN_RIGHT = b"104 TURN RIGHT"
     SERVER_PICK_UP = b"105 GET MESSAGE"
     SERVER_LOGOUT = b"106 LOGOUT"
+    SERVER_LOGIC_ERROR = b"302 LOGIC ERROR"
 
     @staticmethod
     def server_confirmation(server_hash: int) -> bytes:
@@ -85,7 +86,7 @@ class ClientMessage:
     def used_length(self, **kwargs):
         if self.max_len is None:
             return False
-        return not RegexCheck(b".{1," + str(self.max_len-1).encode() + b"}").test(**kwargs)
+        return not RegexCheck(b".{1," + str(self.max_len - 1).encode() + b"}").test(**kwargs)
 
     def length_check(self, **kwargs):
         if self.max_len is None:
@@ -117,6 +118,8 @@ class ClientMessages:
     CLIENT_OK = ClientMessage(10, syntax_checks=RegexCheck(b"OK (-?\d{1,4}) (-?\d{1,4})"),
                               unique_checks=RegexCheck(b"OK 0 0"), parse_cast=int)
     CLIENT_MESSAGE = ClientMessage(98)
+    CLIENT_RECHARGING = ClientMessage(10, syntax_checks=RegexCheck(b"RECHARGING"))
+    CLIENT_FULL_POWER = ClientMessage(10, syntax_checks=RegexCheck(b"FULL POWER"))
 
     @staticmethod
     def matches_message(message: bytes, end_sequence: bytes):

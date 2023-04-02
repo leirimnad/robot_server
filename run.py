@@ -39,13 +39,20 @@ class RobotThread(Thread):
     state_cls = MessageState
     end_sequence = b"\a\b"
     states = [
-        MessageState(name='wait_username', supported_messages=ClientMessages.CLIENT_USERNAME),
-        MessageState(name='wait_key_id', supported_messages=ClientMessages.CLIENT_KEY_ID),
-        MessageState(name='wait_confirmation', supported_messages=ClientMessages.CLIENT_CONFIRMATION),
-        MessageState(name='wait_initial_client_ok', supported_messages=ClientMessages.CLIENT_OK),
-        MessageState(name='wait_client_ok', supported_messages=ClientMessages.CLIENT_OK),
-        MessageState(name='wait_message', supported_messages=ClientMessages.CLIENT_MESSAGE),
-        MessageState(name='final')
+        MessageState(name='wait_username',
+                     supported_messages=[ClientMessages.CLIENT_USERNAME, ClientMessages.CLIENT_RECHARGING]),
+        MessageState(name='wait_key_id',
+                     supported_messages=[ClientMessages.CLIENT_KEY_ID, ClientMessages.CLIENT_RECHARGING]),
+        MessageState(name='wait_confirmation',
+                     supported_messages=[ClientMessages.CLIENT_CONFIRMATION, ClientMessages.CLIENT_RECHARGING]),
+        MessageState(name='wait_initial_client_ok',
+                     supported_messages=[ClientMessages.CLIENT_OK, ClientMessages.CLIENT_RECHARGING]),
+        MessageState(name='wait_client_ok',
+                     supported_messages=[ClientMessages.CLIENT_OK, ClientMessages.CLIENT_RECHARGING]),
+        MessageState(name='wait_message',
+                     supported_messages=[ClientMessages.CLIENT_MESSAGE, ClientMessages.CLIENT_RECHARGING]),
+        MessageState(name='final'),
+        MessageState(name='recharging', supported_messages=ClientMessages.CLIENT_FULL_POWER)
     ]
 
     def __init__(self, connection, address):
@@ -59,28 +66,44 @@ class RobotThread(Thread):
         self.username_hash = None
         self.stop_flag = False
         self.robot_map = RobotMap()
+        self.before_charging_state = None
 
         self.machine = Machine(model=self, states=RobotThread.states, initial='wait_username')
+
+        self.machine.add_transition('process_message', '*', 'recharging',
+                                    conditions=ClientMessages.CLIENT_RECHARGING.syntax_check,
+                                    before=self.save_before_charging_state)
+        self.machine.add_transition('process_message', 'recharging', '=',
+                                    conditions=ClientMessages.CLIENT_FULL_POWER.syntax_check,
+                                    after=self.load_before_charging_state)
+        self.machine.add_transition('process_message', 'recharging', 'final',
+                                    before=lambda **kwargs: self.send(ServerMessages.SERVER_LOGIC_ERROR))
+
         self.machine.add_transition('process_message', 'wait_username', 'wait_key_id',
-                                    conditions=ClientMessages.CLIENT_USERNAME.syntax_check)
+                                    conditions=ClientMessages.CLIENT_USERNAME.syntax_check,
+                                    after=self.handle_correct_username)
 
         self.machine.add_transition('process_message', 'wait_key_id', 'wait_confirmation',
-                                    conditions=ClientMessages.CLIENT_KEY_ID.logic_check)
+                                    conditions=ClientMessages.CLIENT_KEY_ID.logic_check,
+                                    after=self.handle_correct_key_id)
         self.machine.add_transition('process_message', 'wait_key_id', 'final',
                                     conditions=ClientMessages.CLIENT_KEY_ID.syntax_check,
                                     before=lambda **kwargs: self.send(ServerMessages.SERVER_KEY_OUT_OF_RANGE_ERROR))
 
         self.machine.add_transition('process_message', 'wait_confirmation', 'wait_initial_client_ok',
                                     conditions=[ClientMessages.CLIENT_CONFIRMATION.syntax_check,
-                                                self.check_client_hash])
+                                                self.check_client_hash],
+                                    after=self.handle_correct_confirmation)
         self.machine.add_transition('process_message', 'wait_confirmation', 'final',
                                     conditions=ClientMessages.CLIENT_CONFIRMATION.syntax_check,
                                     before=lambda **kwargs: self.send(ServerMessages.SERVER_LOGIN_FAILED))
 
         self.machine.add_transition('process_message', ['wait_initial_client_ok', 'wait_client_ok'], 'wait_message',
-                                    conditions=ClientMessages.CLIENT_OK.unique_check)
+                                    conditions=ClientMessages.CLIENT_OK.unique_check,
+                                    after=lambda **kwargs: self.send(ServerMessages.SERVER_PICK_UP))
         self.machine.add_transition('process_message', ['wait_initial_client_ok', 'wait_client_ok'], 'wait_client_ok',
-                                    conditions=ClientMessages.CLIENT_OK.syntax_check)
+                                    conditions=ClientMessages.CLIENT_OK.syntax_check,
+                                    after=self.handle_client_ok)
 
         self.machine.add_transition('process_message', 'wait_message', 'final',
                                     conditions=ClientMessages.CLIENT_MESSAGE.syntax_check,
@@ -90,25 +113,22 @@ class RobotThread(Thread):
                                     "*", 'final',
                                     before=lambda **kwargs: self.send(ServerMessages.SERVER_SYNTAX_ERROR))
 
-    def on_enter_wait_key_id(self, **kwargs):
+    def handle_correct_username(self, **kwargs):
         self.robot_username = ClientMessages.CLIENT_USERNAME.parse(**kwargs)
         self.send(ServerMessages.SERVER_KEY_REQUEST)
 
-    def on_enter_wait_confirmation(self, **kwargs):
+    def handle_correct_key_id(self, **kwargs):
         self.key_id = ClientMessages.CLIENT_KEY_ID.parse(**kwargs)
         self.username_hash = self.compute_username_hash(self.robot_username)
         self.send(ServerMessages.server_confirmation(self.compute_server_hash()))
 
-    def on_enter_wait_initial_client_ok(self, **kwargs):
+    def handle_correct_confirmation(self, **kwargs):
         self.send(ServerMessages.SERVER_OK)
         self.send(ServerMessages.SERVER_MOVE)
 
-    def on_enter_wait_client_ok(self, **kwargs):
+    def handle_client_ok(self, **kwargs):
         new_position = ClientMessages.CLIENT_OK.parse(**kwargs)
         self.send(ServerMessages.from_action(self.robot_map.update_position(new_position)))
-
-    def on_enter_wait_message(self, **kwargs):
-        self.send(ServerMessages.SERVER_PICK_UP)
 
     def on_enter_final(self, **kwargs):
         self.conn.close()
@@ -130,6 +150,18 @@ class RobotThread(Thread):
     def compute_client_hash(self) -> int:
         return (self.username_hash + client_keys.get(self.key_id)) % 65536
 
+    def save_before_charging_state(self, **kwargs):
+        self.before_charging_state = self.state
+
+    def load_before_charging_state(self, **kwargs):
+        getattr(self, f"to_{self.before_charging_state}")(**kwargs)
+
+    def on_enter_recharging(self, **kwargs):
+        self.conn.settimeout(TIMEOUT_RECHARGING)
+
+    def on_exit_recharging(self, **kwargs):
+        self.conn.settimeout(TIMEOUT)
+
     def send(self, bytestring: bytes):
         to_send = bytestring + self.end_sequence
         print(f"{self.address} <<< {to_send}")
@@ -137,12 +169,12 @@ class RobotThread(Thread):
 
     def run(self):
         print(f"(+) Thread working with address {self.address}")
-        conn.settimeout(TIMEOUT)
+        self.conn.settimeout(TIMEOUT)
         try:
             while True:
                 if self.stop_flag:
                     return
-                text = conn.recv(1024)
+                text = self.conn.recv(1024)
                 print(f"{self.address} >>> {text}")
                 if text == b"":
                     self.conn.close()
