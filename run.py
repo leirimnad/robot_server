@@ -32,7 +32,6 @@ class MessageState(State):
                                                                                         list) else [supported_messages]
 
     def used_all_length(self, **kwargs):
-        print(f"{self.supported_messages=}")
         return all(m.used_length(**kwargs) for m in self.supported_messages)
 
 
@@ -72,7 +71,8 @@ class RobotThread(Thread):
                                     before=lambda **kwargs: self.send(ServerMessages.SERVER_KEY_OUT_OF_RANGE_ERROR))
 
         self.machine.add_transition('process_message', 'wait_confirmation', 'wait_initial_client_ok',
-                                    conditions=[ClientMessages.CLIENT_CONFIRMATION.syntax_check, self.check_client_hash])
+                                    conditions=[ClientMessages.CLIENT_CONFIRMATION.syntax_check,
+                                                self.check_client_hash])
         self.machine.add_transition('process_message', 'wait_confirmation', 'final',
                                     conditions=ClientMessages.CLIENT_CONFIRMATION.syntax_check,
                                     before=lambda **kwargs: self.send(ServerMessages.SERVER_LOGIN_FAILED))
@@ -131,11 +131,12 @@ class RobotThread(Thread):
         return (self.username_hash + client_keys.get(self.key_id)) % 65536
 
     def send(self, bytestring: bytes):
-        print(f"{self.address} <<< {bytestring}")
-        self.conn.sendall(bytestring + self.end_sequence)
+        to_send = bytestring + self.end_sequence
+        print(f"{self.address} <<< {to_send}")
+        self.conn.sendall(to_send)
 
     def run(self):
-        print(f"Thread working with address {self.address}")
+        print(f"(+) Thread working with address {self.address}")
         conn.settimeout(TIMEOUT)
         try:
             while True:
@@ -151,6 +152,7 @@ class RobotThread(Thread):
 
                 if not ClientMessages.matches_message(self.message_stack, self.end_sequence) \
                         and self.machine.get_state(self.state).used_all_length(message=self.message_stack):
+                    print(f"{self.address} used all length with message: {self.message_stack}")
                     self.send(ServerMessages.SERVER_SYNTAX_ERROR)
                     self.conn.close()
                     return
@@ -161,14 +163,15 @@ class RobotThread(Thread):
                     print(f"{self.address} >=> {message}")
                     trimmed_message = message[:-len(self.end_sequence)]
 
-
-
                     self.process_message(message=trimmed_message)
                     print(f"{self.address} () State now: {self.state}")
 
         except socket.timeout:
             print(f"{self.address} Timeout, disconnecting")
-            self.conn.close()
+            try:
+                self.conn.close()
+            except OSError:
+                print(f"{self.address} Couldn't disconnect, possibly did already")
             return
 
 
@@ -179,8 +182,8 @@ if __name__ == "__main__":
     threads = []
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        print("Started")
         s.bind((HOST, PORT))
+        print(f"Started server on {HOST}, port {PORT}")
         s.listen()
         while True:
             try:
