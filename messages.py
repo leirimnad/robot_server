@@ -83,11 +83,6 @@ class ClientMessage:
         self.max_len = max_len
         self.parse_cast = parse_cast
 
-    def used_length(self, **kwargs):
-        if self.max_len is None:
-            return False
-        return not RegexCheck(b".{1," + str(self.max_len - 1).encode() + b"}").test(**kwargs)
-
     def length_check(self, **kwargs):
         if self.max_len is None:
             return True

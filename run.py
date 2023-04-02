@@ -23,6 +23,15 @@ client_keys = {
 TIMEOUT = 1
 TIMEOUT_RECHARGING = 5
 
+arg_name = "message"
+
+
+def get_message(**kwargs):
+    global arg_name
+    if arg_name not in kwargs.keys():
+        raise NameError(f'"{arg_name}" not in kwargs')
+    return kwargs.get(arg_name)
+
 
 class MessageState(State):
     def __init__(self, supported_messages=None, *args, **kwargs):
@@ -31,8 +40,15 @@ class MessageState(State):
         self.supported_messages: list[ClientMessage] = supported_messages if isinstance(supported_messages,
                                                                                         list) else [supported_messages]
 
-    def used_all_length(self, **kwargs):
-        return all(m.used_length(**kwargs) for m in self.supported_messages)
+    def exceeded_max_length(self, end_sequence, **kwargs):
+        message: bytes = get_message(**kwargs)
+        for i in reversed(range(len(end_sequence))):
+            to_find = end_sequence[:i + 1]
+            if message.endswith(to_find):
+                message = message[:-len(to_find)]
+                break
+        kwargs.update({arg_name: message})
+        return all(not m.length_check(**kwargs) for m in self.supported_messages)
 
 
 class RobotThread(Thread):
@@ -183,7 +199,8 @@ class RobotThread(Thread):
                 self.message_stack += text
 
                 if not ClientMessages.matches_message(self.message_stack, self.end_sequence) \
-                        and self.machine.get_state(self.state).used_all_length(message=self.message_stack):
+                        and self.machine.get_state(self.state).exceeded_max_length(message=self.message_stack,
+                                                                                   end_sequence=self.end_sequence):
                     print(f"{self.address} used all length with message: {self.message_stack}")
                     self.send(ServerMessages.SERVER_SYNTAX_ERROR)
                     self.conn.close()
