@@ -1,5 +1,5 @@
 import re
-from robot_map import Action
+from .robot_map import Action
 from dataclasses import dataclass
 
 
