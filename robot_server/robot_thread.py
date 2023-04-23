@@ -3,6 +3,7 @@ from threading import Thread
 from transitions import Machine, State
 from .messages import ServerMessages, ClientMessage, ClientMessages
 from .robot_map import RobotMap
+from .robot_thread_observer import RobotThreadObserver
 
 server_keys = {
     0: 23019,
@@ -84,7 +85,11 @@ class RobotThread(Thread):
         self.robot_map = RobotMap()
         self.before_charging_state = None
 
-        self.machine = Machine(model=self, states=RobotThread.states, initial='wait_username')
+        self.observers: list[RobotThreadObserver] = []
+        self.message_in_process = None
+
+        self.machine = Machine(model=self, states=RobotThread.states, initial='wait_username',
+                               after_state_change=self.on_state_change)
 
         self.machine.add_transition('process_message', '*', 'recharging',
                                     conditions=ClientMessages.CLIENT_RECHARGING.syntax_check,
@@ -178,10 +183,20 @@ class RobotThread(Thread):
     def on_exit_recharging(self, **kwargs):
         self.conn.settimeout(TIMEOUT)
 
+    def add_observer(self, observer: RobotThreadObserver):
+        self.observers.append(observer)
+
+    def on_state_change(self, **kwargs):
+        for observer in self.observers:
+            observer.on_state_change(self.state.name)
+
     def send(self, bytestring: bytes):
         to_send = bytestring + self.end_sequence
         print(f"{self.address} <<< {to_send}")
         self.conn.sendall(to_send)
+        for observer in self.observers:
+            observer.on_message_processed(self.message_in_process, to_send, self.message_stack)
+        self.message_in_process = None
 
     def run(self):
         print(f"(+) Thread working with address {self.address}")
@@ -198,6 +213,9 @@ class RobotThread(Thread):
 
                 self.message_stack += text
 
+                for observer in self.observers:
+                    observer.on_message_stack_update(self.message_stack)
+
                 if not ClientMessages.matches_message(self.message_stack, self.end_sequence) \
                         and self.machine.get_state(self.state).exceeded_max_length(message=self.message_stack,
                                                                                    end_sequence=self.end_sequence):
@@ -212,6 +230,7 @@ class RobotThread(Thread):
                     print(f"{self.address} >=> {message}")
                     trimmed_message = message[:-len(self.end_sequence)]
 
+                    self.message_in_process = trimmed_message
                     self.process_message(message=trimmed_message)
                     print(f"{self.address} () State now: {self.state}")
 
