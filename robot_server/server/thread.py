@@ -188,7 +188,7 @@ class RobotThread(Thread):
 
     def on_state_change(self, **kwargs):
         for observer in self.observers:
-            observer.on_state_change(self.state.name)
+            observer.on_state_update(self.state)
 
     def send(self, bytestring: bytes):
         to_send = bytestring + self.end_sequence

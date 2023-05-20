@@ -24,6 +24,7 @@ class RobotServerApplication:
         self._server_thread = QThread()
         self._server_worker.moveToThread(self._server_thread)
         self._server_thread.started.connect(self._server_worker.start)
+        self._server_worker.new_connection.connect(self._main_window.on_new_connection)
 
         self._server_thread.start()
         self._app.exec()
