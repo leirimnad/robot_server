@@ -4,7 +4,7 @@ from typing import Optional
 from PyQt5 import QtWidgets
 from PyQt5 import uic
 
-from ..server.thread_observer import RobotThreadObserver
+from ..server import RobotThreadObserver
 
 
 class ThreadWidgetMeta(type(QtWidgets.QWidget), type(RobotThreadObserver)):
