@@ -7,6 +7,13 @@ class RobotServer:
         self.host = host
         self.port = port
         self.threads = []
+        self.observers = []
+
+    def add_observer(self, observer):
+        self.observers.append(observer)
+
+    def remove_observer(self, observer):
+        self.observers.remove(observer)
 
     def start(self):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -18,6 +25,8 @@ class RobotServer:
                     conn, addr = s.accept()
                     thread = RobotThread(conn, addr)
                     self.threads.append(thread)
+                    for observer in self.observers:
+                        observer.on_new_connection(thread)
                     thread.start()
                 except KeyboardInterrupt:
                     break
