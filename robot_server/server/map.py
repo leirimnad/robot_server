@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Optional, Tuple, Any
+from typing import Optional
 
 
 class Action(Enum):

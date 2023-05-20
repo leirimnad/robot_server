@@ -2,8 +2,8 @@ import socket
 from threading import Thread
 from transitions import Machine, State
 from .messages import ServerMessages, ClientMessage, ClientMessages
-from .robot_map import RobotMap
-from .robot_thread_observer import RobotThreadObserver
+from .map import RobotMap
+from .thread_observer import RobotThreadObserver
 
 server_keys = {
     0: 23019,
