@@ -1,12 +1,17 @@
 import sys
 from typing import Optional
 
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5 import QtWidgets
 from PyQt5 import uic
+
 from robot_server.robot_thread_observer import RobotThreadObserver
 
 
-class ThreadWidget(QtWidgets.QWidget, RobotThreadObserver):
+class ThreadWidgetMeta(type(QtWidgets.QWidget), type(RobotThreadObserver)):
+    pass
+
+
+class ThreadWidget(QtWidgets.QWidget, RobotThreadObserver, metaclass=ThreadWidgetMeta):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
