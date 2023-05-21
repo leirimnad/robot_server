@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Optional
+from robot_server.bridge.thread_event import RobotThreadEvent
 
 
 class RobotThreadObserver(ABC):
@@ -7,13 +7,5 @@ class RobotThreadObserver(ABC):
         pass
 
     @abstractmethod
-    def on_message_stack_update(self, message_stack: bytes):
-        raise NotImplementedError
-
-    @abstractmethod
-    def on_message_processed(self, message: Optional[bytes], response: bytes, new_message_stack: bytes):
-        raise NotImplementedError
-
-    @abstractmethod
-    def on_state_update(self, state_name):
+    def on_thread_event(self, event: RobotThreadEvent):
         raise NotImplementedError

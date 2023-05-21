@@ -1,4 +1,6 @@
 import socket
+
+from .server_observer import RobotServerObserver
 from .thread import RobotThread
 
 
@@ -7,12 +9,12 @@ class RobotServer:
         self.host = host
         self.port = port
         self.threads = []
-        self.observers = []
+        self.observers: list[RobotServerObserver] = []
 
-    def add_observer(self, observer):
+    def add_observer(self, observer: RobotServerObserver):
         self.observers.append(observer)
 
-    def remove_observer(self, observer):
+    def remove_observer(self, observer: RobotServerObserver):
         self.observers.remove(observer)
 
     def start(self):

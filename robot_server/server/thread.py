@@ -4,6 +4,7 @@ from transitions import Machine, State
 from .messages import ServerMessages, ClientMessage, ClientMessages
 from .map import RobotMap
 from .thread_observer import RobotThreadObserver
+from robot_server.bridge.thread_event import StateUpdate, MessageProcessed, MessageStackUpdate
 
 server_keys = {
     0: 23019,
@@ -188,14 +189,14 @@ class RobotThread(Thread):
 
     def on_state_change(self, **kwargs):
         for observer in self.observers:
-            observer.on_state_update(self.state)
+            observer.on_thread_event(StateUpdate(self.state))
 
     def send(self, bytestring: bytes):
         to_send = bytestring + self.end_sequence
         print(f"{self.address} <<< {to_send}")
         self.conn.sendall(to_send)
         for observer in self.observers:
-            observer.on_message_processed(self.message_in_process, to_send, self.message_stack)
+            observer.on_thread_event(MessageProcessed(self.message_in_process, bytestring, self.message_stack))
         self.message_in_process = None
 
     def run(self):
@@ -214,7 +215,7 @@ class RobotThread(Thread):
                 self.message_stack += text
 
                 for observer in self.observers:
-                    observer.on_message_stack_update(self.message_stack)
+                    observer.on_thread_event(MessageStackUpdate(self.message_stack))
 
                 if not ClientMessages.matches_message(self.message_stack, self.end_sequence) \
                         and self.machine.get_state(self.state).exceeded_max_length(message=self.message_stack,

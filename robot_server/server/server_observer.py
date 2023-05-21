@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from robot_server.server import RobotThread
+from .thread import RobotThread
 
 
 class RobotServerObserver(ABC):

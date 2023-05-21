@@ -5,7 +5,7 @@ from PyQt5.QtCore import QThread
 
 from .main_window import MainWindow
 from robot_server.server import RobotServer
-from .server_worker import ServerWorker
+from .workers import ServerWorker
 
 
 class RobotServerApplication:
@@ -15,8 +15,6 @@ class RobotServerApplication:
         self._robot_server = robot_server
         self._app = QtWidgets.QApplication(sys.argv)
         self._main_window = MainWindow()
-
-        robot_server.add_observer(self._main_window)
 
     def run(self):
         self._main_window.show()
