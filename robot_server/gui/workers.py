@@ -40,9 +40,9 @@ class ThreadWorker(QObject, RobotThreadObserver, metaclass=ThreadWorkerMeta):
     def __init__(self, thread: RobotThread):
         super().__init__()
         self._thread = thread
-        self._thread.add_observer(self)
         self._signals_connected = False
         self._events_queue = []
+        self._thread.add_observer(self)
 
     def _process_event(self, event: RobotThreadEvent):
         if isinstance(event, MessageStackUpdate):

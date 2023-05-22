@@ -28,5 +28,5 @@ class MainWindow(QtWidgets.QMainWindow):
         thread_worker.signals_connected()
 
         self.label_2.setText(str(self.c))
-        self.verticalLayout_3.addWidget(widget)
+        self.verticalLayout_3.insertWidget(self.verticalLayout_3.count() - 1, widget)
 

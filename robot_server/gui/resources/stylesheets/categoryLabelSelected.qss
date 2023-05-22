@@ -1,0 +1,6 @@
+QLabel {
+    font-size: 18px;
+    font-family: "Dubai";
+    text-align: right;
+    font-weight: bold;
+}

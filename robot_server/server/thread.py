@@ -186,6 +186,7 @@ class RobotThread(Thread):
 
     def add_observer(self, observer: RobotThreadObserver):
         self.observers.append(observer)
+        observer.on_thread_event(StateUpdate(self.state))
 
     def on_state_change(self, **kwargs):
         for observer in self.observers:
@@ -222,6 +223,7 @@ class RobotThread(Thread):
                                                                                    end_sequence=self.end_sequence):
                     print(f"{self.address} used all length with message: {self.message_stack}")
                     self.send(ServerMessages.SERVER_SYNTAX_ERROR)
+                    self.to_final()
                     self.conn.close()
                     return
 
@@ -237,6 +239,7 @@ class RobotThread(Thread):
 
         except socket.timeout:
             print(f"{self.address} Timeout, disconnecting")
+            self.to_final()
             try:
                 self.conn.close()
             except OSError:
