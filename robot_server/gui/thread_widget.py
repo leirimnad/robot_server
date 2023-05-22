@@ -4,6 +4,8 @@ from typing import Optional
 from PyQt5 import QtWidgets
 from PyQt5 import uic
 
+from .map_drawer import MapDrawer
+from ..bridge.thread_event import MapState
 from ..server import RobotThreadObserver
 
 
@@ -43,11 +45,11 @@ class ThreadWidgetMeta(type(QtWidgets.QWidget), type(RobotThreadObserver)):
 class ThreadWidget(QtWidgets.QWidget, metaclass=ThreadWidgetMeta):
     label_stylesheet = (Path(__file__).parent / "resources" / "stylesheets" / "categoryLabel.qss").read_text()
     label_selected_stylesheet = (
-                Path(__file__).parent / "resources" / "stylesheets" / "categoryLabelSelected.qss").read_text()
+            Path(__file__).parent / "resources" / "stylesheets" / "categoryLabelSelected.qss").read_text()
     label_expected_stylesheet = (
-                Path(__file__).parent / "resources" / "stylesheets" / "categoryLabelExpected.qss").read_text()
+            Path(__file__).parent / "resources" / "stylesheets" / "categoryLabelExpected.qss").read_text()
     label_skipped_stylesheet = (
-                Path(__file__).parent / "resources" / "stylesheets" / "categoryLabelSkipped.qss").read_text()
+            Path(__file__).parent / "resources" / "stylesheets" / "categoryLabelSkipped.qss").read_text()
 
     def __init__(self, parent=None, *args, **kwargs):
         super().__init__(parent=parent, *args, **kwargs)
@@ -60,6 +62,7 @@ class ThreadWidget(QtWidgets.QWidget, metaclass=ThreadWidgetMeta):
         self._categories_labels: dict[StateCategory, QtWidgets.QLabel] = {}
         self.expected_categories = [StateCategories.AUTHENTICATION, StateCategories.NAVIGATION, StateCategories.MESSAGE]
         self._expected_categories_labels: dict[StateCategory, QtWidgets.QLabel] = {}
+        self._map_drawer = MapDrawer(self.mapGraphicsView)
 
         self.threadStateLabel.setText("Running")
 
@@ -124,6 +127,9 @@ class ThreadWidget(QtWidgets.QWidget, metaclass=ThreadWidgetMeta):
 
         self._selected_category = category
 
+    def on_map_update(self, map_state: MapState):
+        self._map_drawer.update_map(map_state)
+
     def _finish(self):
         self.threadStateLabel.setText("Finished")
         self.threadStateLabel.setStyleSheet("color: green;")
@@ -135,7 +141,6 @@ class ThreadWidget(QtWidgets.QWidget, metaclass=ThreadWidgetMeta):
         self.threadStateLabel.setStyleSheet("color: red;")
         for label in self._expected_categories_labels.values():
             label.setStyleSheet(self.label_skipped_stylesheet)
-
 
     def _clear_message_layout(self):
         count = self.incomingMessagesLayout.count()

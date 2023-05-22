@@ -1,6 +1,7 @@
 from PyQt5.QtCore import QObject, pyqtSignal, QThread
 
-from robot_server.bridge.thread_event import RobotThreadEvent, MessageStackUpdate, MessageProcessed, StateUpdate
+from robot_server.bridge.thread_event import RobotThreadEvent, MessageStackUpdate, MessageProcessed, StateUpdate, \
+    MapUpdate
 from robot_server.server import RobotServer, RobotServerObserver, RobotThread, RobotThreadObserver
 
 
@@ -36,6 +37,7 @@ class ThreadWorker(QObject, RobotThreadObserver, metaclass=ThreadWorkerMeta):
     message_stack_update = pyqtSignal(bytes, name="messageStackUpdate")
     message_processed = pyqtSignal(object, bytes, bytes, name="messageProcessed")
     state_update = pyqtSignal(str, name="stateUpdate")
+    map_update = pyqtSignal(object, name="mapUpdate")
 
     def __init__(self, thread: RobotThread):
         super().__init__()
@@ -51,6 +53,8 @@ class ThreadWorker(QObject, RobotThreadObserver, metaclass=ThreadWorkerMeta):
             self.message_processed.emit(event.message, event.response, event.new_message_stack)
         elif isinstance(event, StateUpdate):
             self.state_update.emit(event.state_name)
+        elif isinstance(event, MapUpdate):
+            self.map_update.emit(event.map_state)
         else:
             raise NotImplementedError
 

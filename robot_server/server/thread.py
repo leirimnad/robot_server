@@ -4,7 +4,7 @@ from transitions import Machine, State
 from .messages import ServerMessages, ClientMessage, ClientMessages
 from .map import RobotMap
 from .thread_observer import RobotThreadObserver
-from robot_server.bridge.thread_event import StateUpdate, MessageProcessed, MessageStackUpdate
+from robot_server.bridge.thread_event import StateUpdate, MessageProcessed, MessageStackUpdate, MapUpdate
 
 server_keys = {
     0: 23019,
@@ -123,7 +123,7 @@ class RobotThread(Thread):
 
         self.machine.add_transition('process_message', ['wait_initial_client_ok', 'wait_client_ok'], 'wait_message',
                                     conditions=ClientMessages.CLIENT_OK.unique_check,
-                                    after=lambda **kwargs: self.send(ServerMessages.SERVER_PICK_UP))
+                                    after=self.handle_client_ok_center)
         self.machine.add_transition('process_message', ['wait_initial_client_ok', 'wait_client_ok'], 'wait_client_ok',
                                     conditions=ClientMessages.CLIENT_OK.syntax_check,
                                     after=self.handle_client_ok)
@@ -152,6 +152,15 @@ class RobotThread(Thread):
     def handle_client_ok(self, **kwargs):
         new_position = ClientMessages.CLIENT_OK.parse(**kwargs)
         self.send(ServerMessages.from_action(self.robot_map.update_position(new_position)))
+        for observer in self.observers:
+            observer.on_thread_event(MapUpdate(self.robot_map.get_map_state()))
+
+    def handle_client_ok_center(self, **kwargs):
+        new_position = ClientMessages.CLIENT_OK.parse(**kwargs)
+        self.robot_map.update_position(new_position)
+        for observer in self.observers:
+            observer.on_thread_event(MapUpdate(self.robot_map.get_map_state()))
+        self.send(ServerMessages.SERVER_PICK_UP)
 
     def on_enter_final(self, **kwargs):
         self.finish()

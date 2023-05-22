@@ -25,7 +25,7 @@
   <property name="windowTitle">
    <string>Form</string>
   </property>
-  <layout class="QHBoxLayout" name="horizontalLayout" stretch="0,1,0">
+  <layout class="QHBoxLayout" name="horizontalLayout" stretch="0,0">
    <item>
     <layout class="QHBoxLayout" name="horizontalLayout_3" stretch="0,0">
      <item>
@@ -122,7 +122,7 @@
            <rect>
             <x>0</x>
             <y>0</y>
-            <width>591</width>
+            <width>621</width>
             <height>196</height>
            </rect>
           </property>
@@ -191,7 +191,7 @@
                  </property>
                  <property name="sizeHint" stdset="0">
                   <size>
-                   <width>140</width>
+                   <width>170</width>
                    <height>0</height>
                   </size>
                  </property>
@@ -208,28 +208,6 @@
       </layout>
      </item>
     </layout>
-   </item>
-   <item>
-    <widget class="QProgressBar" name="timeoutBar">
-     <property name="autoFillBackground">
-      <bool>false</bool>
-     </property>
-     <property name="value">
-      <number>0</number>
-     </property>
-     <property name="textVisible">
-      <bool>false</bool>
-     </property>
-     <property name="orientation">
-      <enum>Qt::Vertical</enum>
-     </property>
-     <property name="invertedAppearance">
-      <bool>false</bool>
-     </property>
-     <property name="format">
-      <string>%p%</string>
-     </property>
-    </widget>
    </item>
    <item>
     <widget class="QGraphicsView" name="mapGraphicsView">

@@ -1,6 +1,8 @@
 from enum import Enum
 from typing import Optional
 
+from robot_server.bridge.thread_event import MapState
+
 
 class Action(Enum):
     MOVE = 0
@@ -50,7 +52,8 @@ class RobotMap:
         self.position = None
         self.rotation = None
         self.previous_action = None
-        self.banned_positions = []
+        self.banned_positions: list[tuple[int, int]] = []
+        self.obstacles: list[tuple[int, int]] = []
 
     def update_position(self, position: tuple) -> Action:
         res = self._update_position(position)
@@ -86,6 +89,7 @@ class RobotMap:
 
         if prev_position == new_position and self.previous_action == Action.MOVE:  # obstacle
             self.banned_positions.append(next_position)
+            self.obstacles.append(next_position)
             available_rotations.remove(self.rotation)
 
         available_rotations = list(filter(
@@ -102,3 +106,8 @@ class RobotMap:
         if self.rotation not in available_rotations:
             return self.rotation.turn_for(available_rotations)
         return Action.MOVE
+
+    def get_map_state(self) -> MapState:
+        return MapState(self.position,
+                        MapState.Rotation(self.rotation.value) if self.rotation is not None else None,
+                        self.obstacles)

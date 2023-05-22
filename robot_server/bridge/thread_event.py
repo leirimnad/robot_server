@@ -1,3 +1,4 @@
+from enum import Enum
 from typing import Optional
 
 
@@ -20,3 +21,21 @@ class MessageProcessed(RobotThreadEvent):
 class StateUpdate(RobotThreadEvent):
     def __init__(self, state_name: str):
         self.state_name = state_name
+
+
+class MapState:
+    class Rotation(Enum):
+        UP = 0
+        RIGHT = 1
+        DOWN = 2
+        LEFT = 3
+
+    def __init__(self, position: tuple, rotation: Rotation, banned_positions: list[tuple[int, int]]):
+        self.position = position
+        self.rotation = rotation
+        self.banned_positions = banned_positions
+
+
+class MapUpdate(RobotThreadEvent):
+    def __init__(self, map_state: MapState):
+        self.map_state = map_state

@@ -25,6 +25,7 @@ class MainWindow(QtWidgets.QMainWindow):
         thread_worker.message_stack_update.connect(widget.on_message_stack_update)
         thread_worker.message_processed.connect(widget.on_message_processed)
         thread_worker.state_update.connect(widget.on_state_update)
+        thread_worker.map_update.connect(widget.on_map_update)
         thread_worker.signals_connected()
 
         self.label_2.setText(str(self.c))
