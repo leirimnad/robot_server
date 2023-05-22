@@ -26,6 +26,7 @@ class StateCategory:
 
 
 class StateCategories:
+    NONE = StateCategory("None")
     AUTHENTICATION = StateCategory("Authentication")
     NAVIGATION = StateCategory("Navigation")
     MESSAGE = StateCategory("Message")
@@ -38,21 +39,33 @@ class ThreadWidgetMeta(type(QtWidgets.QWidget), type(RobotThreadObserver)):
 
 
 class ThreadWidget(QtWidgets.QWidget, metaclass=ThreadWidgetMeta):
-    expected_categories = [StateCategories.AUTHENTICATION, StateCategories.NAVIGATION, StateCategories.MESSAGE]
     label_stylesheet = (Path(__file__).parent / "resources" / "stylesheets" / "categoryLabel.qss").read_text()
     label_selected_stylesheet = (
                 Path(__file__).parent / "resources" / "stylesheets" / "categoryLabelSelected.qss").read_text()
+    label_expected_stylesheet = (
+                Path(__file__).parent / "resources" / "stylesheets" / "categoryLabelExpected.qss").read_text()
+    label_skipped_stylesheet = (
+                Path(__file__).parent / "resources" / "stylesheets" / "categoryLabelSkipped.qss").read_text()
 
     def __init__(self, parent=None, *args, **kwargs):
         super().__init__(parent=parent, *args, **kwargs)
         uic.loadUi(Path(__file__).parent / "resources" / "thread_widget.ui", self)
         vbar = self.scrollArea.verticalScrollBar()
         vbar.rangeChanged.connect(lambda: vbar.setValue(vbar.maximum()))
-        self._category: StateCategory = None
+        self._category: StateCategory = StateCategories.NONE
         self._selected_category = None
         self._categories_log: dict[StateCategory, list[tuple[Optional[bytes], bytes]]] = {}
         self._categories_labels: dict[StateCategory, QtWidgets.QLabel] = {}
+        self.expected_categories = [StateCategories.AUTHENTICATION, StateCategories.NAVIGATION, StateCategories.MESSAGE]
+        self._expected_categories_labels: dict[StateCategory, QtWidgets.QLabel] = {}
+
         self.threadStateLabel.setText("Running")
+
+        for category in self.expected_categories:
+            label = QtWidgets.QLabel(category.name)
+            label.setStyleSheet(self.label_expected_stylesheet)
+            self._expected_categories_labels[category] = label
+            self.categoriesLayout.insertWidget(self.categoriesLayout.count() - 1, label)
 
     def on_message_stack_update(self, message_stack: bytes):
         self.incomingMessageLabel.setText(message_stack.decode())
@@ -70,18 +83,25 @@ class ThreadWidget(QtWidgets.QWidget, metaclass=ThreadWidgetMeta):
         self._category = new_category
 
         if new_category == StateCategories.FINAL:
-            self.threadStateLabel.setText("Finished")
+            self._finish()
             return
 
         if new_category not in self._categories_log.keys():
             self._categories_log[new_category] = []
-            label = QtWidgets.QLabel(new_category.name)
-            label.setStyleSheet(self.label_stylesheet)
-            label.mousePressEvent = lambda event: self.select_category(new_category)
-            self._categories_labels[new_category] = label
-            self.categoriesLayout.insertWidget(self.categoriesLayout.count() - 1, label)
 
-        self.select_category(new_category)
+            if len(self.expected_categories) > 0 and new_category == self.expected_categories[0]:
+                self.expected_categories.pop(0)
+                self.categoriesLayout.removeWidget(self._expected_categories_labels[new_category])
+                self._expected_categories_labels[new_category].setParent(None)
+                del self._expected_categories_labels[new_category]
+
+                label = QtWidgets.QLabel(new_category.name)
+                label.setStyleSheet(self.label_stylesheet)
+                label.mousePressEvent = lambda event: self.select_category(new_category)
+                self._categories_labels[new_category] = label
+                self.categoriesLayout.insertWidget(
+                    self.categoriesLayout.count() - len(self.expected_categories) - 1, label)
+                self.select_category(new_category)
 
     def select_category(self, category: StateCategory):
         if self._selected_category == category:
@@ -97,6 +117,11 @@ class ThreadWidget(QtWidgets.QWidget, metaclass=ThreadWidgetMeta):
             self._add_message(*i)
 
         self._selected_category = category
+
+    def _finish(self):
+        self.threadStateLabel.setText("Finished")
+        for label in self._expected_categories_labels.values():
+            label.setStyleSheet(self.label_skipped_stylesheet)
 
     def _clear_message_layout(self):
         count = self.incomingMessagesLayout.count()
