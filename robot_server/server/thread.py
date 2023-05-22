@@ -70,6 +70,7 @@ class RobotThread(Thread):
         MessageState(name='wait_message',
                      supported_messages=[ClientMessages.CLIENT_MESSAGE, ClientMessages.CLIENT_RECHARGING]),
         MessageState(name='final'),
+        MessageState(name='error'),
         MessageState(name='recharging', supported_messages=ClientMessages.CLIENT_FULL_POWER)
     ]
 
@@ -98,7 +99,7 @@ class RobotThread(Thread):
         self.machine.add_transition('process_message', 'recharging', '=',
                                     conditions=ClientMessages.CLIENT_FULL_POWER.syntax_check,
                                     after=self.load_before_charging_state)
-        self.machine.add_transition('process_message', 'recharging', 'final',
+        self.machine.add_transition('process_message', 'recharging', 'error',
                                     before=lambda **kwargs: self.send(ServerMessages.SERVER_LOGIC_ERROR))
 
         self.machine.add_transition('process_message', 'wait_username', 'wait_key_id',
@@ -108,7 +109,7 @@ class RobotThread(Thread):
         self.machine.add_transition('process_message', 'wait_key_id', 'wait_confirmation',
                                     conditions=ClientMessages.CLIENT_KEY_ID.logic_check,
                                     after=self.handle_correct_key_id)
-        self.machine.add_transition('process_message', 'wait_key_id', 'final',
+        self.machine.add_transition('process_message', 'wait_key_id', 'error',
                                     conditions=ClientMessages.CLIENT_KEY_ID.syntax_check,
                                     before=lambda **kwargs: self.send(ServerMessages.SERVER_KEY_OUT_OF_RANGE_ERROR))
 
@@ -116,7 +117,7 @@ class RobotThread(Thread):
                                     conditions=[ClientMessages.CLIENT_CONFIRMATION.syntax_check,
                                                 self.check_client_hash],
                                     after=self.handle_correct_confirmation)
-        self.machine.add_transition('process_message', 'wait_confirmation', 'final',
+        self.machine.add_transition('process_message', 'wait_confirmation', 'error',
                                     conditions=ClientMessages.CLIENT_CONFIRMATION.syntax_check,
                                     before=lambda **kwargs: self.send(ServerMessages.SERVER_LOGIN_FAILED))
 
@@ -132,7 +133,7 @@ class RobotThread(Thread):
                                     before=lambda **kwargs: self.send(ServerMessages.SERVER_LOGOUT))
 
         self.machine.add_transition('process_message',
-                                    "*", 'final',
+                                    "*", 'error',
                                     before=lambda **kwargs: self.send(ServerMessages.SERVER_SYNTAX_ERROR))
 
     def handle_correct_username(self, **kwargs):
@@ -153,9 +154,15 @@ class RobotThread(Thread):
         self.send(ServerMessages.from_action(self.robot_map.update_position(new_position)))
 
     def on_enter_final(self, **kwargs):
+        self.finish()
+
+    def on_enter_error(self, **kwargs):
+        self.finish()
+
+    def finish(self):
         self.conn.close()
         self.stop_flag = True
-        print(f"{self.address} Disconnected, stopping thread.")
+        print(f"{self.address} finished, stopping thread.")
 
     def check_client_hash(self, **kwargs) -> bool:
         client_hash = ClientMessages.CLIENT_CONFIRMATION.parse(**kwargs)
@@ -223,7 +230,7 @@ class RobotThread(Thread):
                                                                                    end_sequence=self.end_sequence):
                     print(f"{self.address} used all length with message: {self.message_stack}")
                     self.send(ServerMessages.SERVER_SYNTAX_ERROR)
-                    self.to_final()
+                    self.to_error()
                     self.conn.close()
                     return
 
@@ -239,7 +246,7 @@ class RobotThread(Thread):
 
         except socket.timeout:
             print(f"{self.address} Timeout, disconnecting")
-            self.to_final()
+            self.to_error()
             try:
                 self.conn.close()
             except OSError:

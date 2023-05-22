@@ -21,6 +21,7 @@ class StateCategory:
             "wait_client_ok": StateCategories.NAVIGATION,
             "wait_message": StateCategories.MESSAGE,
             "final": StateCategories.FINAL,
+            "error": StateCategories.ERROR,
             "recharging": StateCategories.RECHARGING
         }.get(state_name)
 
@@ -32,6 +33,7 @@ class StateCategories:
     MESSAGE = StateCategory("Message")
     RECHARGING = StateCategory("Recharging")
     FINAL = StateCategory("Final")
+    ERROR = StateCategory("Error")
 
 
 class ThreadWidgetMeta(type(QtWidgets.QWidget), type(RobotThreadObserver)):
@@ -86,6 +88,10 @@ class ThreadWidget(QtWidgets.QWidget, metaclass=ThreadWidgetMeta):
             self._finish()
             return
 
+        if new_category == StateCategories.ERROR:
+            self._finish_with_error()
+            return
+
         if new_category not in self._categories_log.keys():
             self._categories_log[new_category] = []
 
@@ -120,8 +126,16 @@ class ThreadWidget(QtWidgets.QWidget, metaclass=ThreadWidgetMeta):
 
     def _finish(self):
         self.threadStateLabel.setText("Finished")
+        self.threadStateLabel.setStyleSheet("color: green;")
         for label in self._expected_categories_labels.values():
             label.setStyleSheet(self.label_skipped_stylesheet)
+
+    def _finish_with_error(self):
+        self.threadStateLabel.setText("Error")
+        self.threadStateLabel.setStyleSheet("color: red;")
+        for label in self._expected_categories_labels.values():
+            label.setStyleSheet(self.label_skipped_stylesheet)
+
 
     def _clear_message_layout(self):
         count = self.incomingMessagesLayout.count()
