@@ -26,17 +26,31 @@
       <property name="spacing">
        <number>20</number>
       </property>
+      <property name="leftMargin">
+       <number>10</number>
+      </property>
+      <property name="topMargin">
+       <number>5</number>
+      </property>
+      <property name="rightMargin">
+       <number>7</number>
+      </property>
+      <property name="bottomMargin">
+       <number>5</number>
+      </property>
       <item>
        <widget class="QLabel" name="app_name_label">
+        <property name="font">
+         <font>
+          <pointsize>13</pointsize>
+          <bold>true</bold>
+         </font>
+        </property>
         <property name="text">
          <string>Robot Control Server</string>
         </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QCheckBox" name="checkBox">
-        <property name="text">
-         <string>Run</string>
+        <property name="indent">
+         <number>-7</number>
         </property>
        </widget>
       </item>
@@ -48,11 +62,58 @@
        </widget>
       </item>
       <item>
-       <widget class="QLabel" name="label_2">
-        <property name="text">
-         <string>Active Connections: 0</string>
+       <layout class="QHBoxLayout" name="horizontalLayout_2">
+        <property name="spacing">
+         <number>3</number>
         </property>
-       </widget>
+        <item>
+         <widget class="QLabel" name="label_2">
+          <property name="text">
+           <string>Active Connections: </string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="activeConnectionsLabel">
+          <property name="font">
+           <font>
+            <family>Verdana</family>
+            <pointsize>11</pointsize>
+           </font>
+          </property>
+          <property name="text">
+           <string>123</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <layout class="QHBoxLayout" name="horizontalLayout_4">
+        <property name="spacing">
+         <number>3</number>
+        </property>
+        <item>
+         <widget class="QLabel" name="label_6">
+          <property name="text">
+           <string>Total Connections: </string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="totalConnectionsLabel">
+          <property name="font">
+           <font>
+            <family>Verdana</family>
+            <pointsize>11</pointsize>
+           </font>
+          </property>
+          <property name="text">
+           <string>123</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
       </item>
       <item>
        <spacer name="horizontalSpacer">
@@ -80,12 +141,12 @@
          <x>0</x>
          <y>0</y>
          <width>1026</width>
-         <height>549</height>
+         <height>538</height>
         </rect>
        </property>
        <layout class="QVBoxLayout" name="verticalLayout">
         <item>
-         <layout class="QVBoxLayout" name="verticalLayout_3">
+         <layout class="QVBoxLayout" name="threadWidgetsLayout">
           <item>
            <spacer name="verticalSpacer">
             <property name="orientation">

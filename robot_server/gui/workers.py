@@ -38,6 +38,7 @@ class ThreadWorker(QObject, RobotThreadObserver, metaclass=ThreadWorkerMeta):
     message_processed = pyqtSignal(object, bytes, bytes, name="messageProcessed")
     state_update = pyqtSignal(str, name="stateUpdate")
     map_update = pyqtSignal(object, name="mapUpdate")
+    disconnected = pyqtSignal(name="disconnected")
 
     def __init__(self, thread: RobotThread):
         super().__init__()
@@ -45,6 +46,7 @@ class ThreadWorker(QObject, RobotThreadObserver, metaclass=ThreadWorkerMeta):
         self._signals_connected = False
         self._events_queue = []
         self._thread.add_observer(self)
+        self.connection_address = thread.address
 
     def _process_event(self, event: RobotThreadEvent):
         if isinstance(event, MessageStackUpdate):

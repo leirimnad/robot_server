@@ -130,6 +130,9 @@ class ThreadWidget(QtWidgets.QWidget, metaclass=ThreadWidgetMeta):
     def on_map_update(self, map_state: MapState):
         self._map_drawer.update_map(map_state)
 
+    def set_connection_address(self, address: tuple[str, int]):
+        self.addressLabel.setText(f"{address[0]}:{address[1]}")
+
     def _finish(self):
         self.threadStateLabel.setText("Finished")
         self.threadStateLabel.setStyleSheet("color: green;")
