@@ -18,8 +18,12 @@ class MainWindow(QtWidgets.QMainWindow):
         self.totalConnectionsLabel.setText(str(self.total_connections))
         self.active_connections = 0
         self.activeConnectionsLabel.setText(str(self.active_connections))
-        vbar = self.scrollArea.verticalScrollBar()
-        vbar.rangeChanged.connect(lambda: vbar.setValue(vbar.maximum()))
+        self.auto_scroll = True
+        self._auto_scrolling__ = False
+        self.vbar = self.scrollArea.verticalScrollBar()
+        self.vbar.rangeChanged.connect(self.scroll_automatically)
+        self.vbar.valueChanged.connect(self.on_scroll_value_changed)
+        self.autoScrollCheckBox.stateChanged.connect(self.on_auto_scroll_checkbox_changed)
 
     def on_new_connection(self, thread_worker: ThreadWorker):
         self.active_connections += 1
@@ -42,3 +46,20 @@ class MainWindow(QtWidgets.QMainWindow):
     def on_disconnected(self):
         self.active_connections -= 1
         self.activeConnectionsLabel.setText(str(self.c))
+
+    def scroll_automatically(self):
+        if self.auto_scroll:
+            self._auto_scrolling__ = True
+            self.vbar.setValue(self.vbar.maximum())
+
+    def on_auto_scroll_checkbox_changed(self):
+        self._auto_scrolling__ = True
+        self.vbar.setValue(self.vbar.maximum())
+        self.auto_scroll = self.autoScrollCheckBox.isChecked()
+
+    def on_scroll_value_changed(self):
+        if self._auto_scrolling__:
+            self._auto_scrolling__ = False
+        else:
+            self.auto_scroll = False
+            self.autoScrollCheckBox.setChecked(False)
