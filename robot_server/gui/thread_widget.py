@@ -62,6 +62,8 @@ class ThreadWidget(QtWidgets.QWidget, metaclass=ThreadWidgetMeta):
         self._categories_labels: dict[StateCategory, QtWidgets.QLabel] = {}
         self.expected_categories = [StateCategories.AUTHENTICATION, StateCategories.NAVIGATION, StateCategories.MESSAGE]
         self._expected_categories_labels: dict[StateCategory, QtWidgets.QLabel] = {}
+        self._message_stack = ""
+        self._category_manually_selected = False
         self._map_drawer = MapDrawer(self.mapGraphicsView)
 
         self.threadStateLabel.setText("Running")
@@ -73,7 +75,10 @@ class ThreadWidget(QtWidgets.QWidget, metaclass=ThreadWidgetMeta):
             self.categoriesLayout.insertWidget(self.categoriesLayout.count() - 1, label)
 
     def on_message_stack_update(self, message_stack: bytes):
-        self.incomingMessageLabel.setText(message_stack.decode())
+        self._message_stack = repr(message_stack.decode())[1:-1]
+
+        if self._category == self._selected_category:
+            self.incomingMessageLabel.setText(self._message_stack)
 
     def on_message_processed(self, message: Optional[bytes], response: bytes, new_message_stack: bytes):
 
@@ -106,15 +111,20 @@ class ThreadWidget(QtWidgets.QWidget, metaclass=ThreadWidgetMeta):
 
                 label = QtWidgets.QLabel(new_category.name)
                 label.setStyleSheet(self.label_stylesheet)
-                label.mousePressEvent = lambda event: self.select_category(new_category)
+                label.mousePressEvent = lambda event: self.select_category(new_category, True)
                 self._categories_labels[new_category] = label
                 self.categoriesLayout.insertWidget(
                     self.categoriesLayout.count() - len(self.expected_categories) - 1, label)
-                self.select_category(new_category)
 
-    def select_category(self, category: StateCategory):
+                if not self._category_manually_selected:
+                    self.select_category(new_category)
+
+    def select_category(self, category: StateCategory, manually_selected=False):
         if self._selected_category == category:
             return
+
+        if manually_selected:
+            self._category_manually_selected = True
 
         for label in self._categories_labels.values():
             label.setStyleSheet(self.label_stylesheet)
@@ -124,6 +134,11 @@ class ThreadWidget(QtWidgets.QWidget, metaclass=ThreadWidgetMeta):
         self._clear_message_layout()
         for i in self._categories_log[category]:
             self._add_message(*i)
+
+        if self._category == category:
+            self.incomingMessageLabel.setText(self._message_stack)
+        else:
+            self.incomingMessageLabel.setText("")
 
         self._selected_category = category
 
