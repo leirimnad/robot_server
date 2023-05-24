@@ -1,4 +1,6 @@
 import re
+from typing import Optional
+
 from .map import Action
 from dataclasses import dataclass
 
@@ -27,6 +29,15 @@ class ServerMessages:
             Action.TURN_RIGHT: cls.SERVER_TURN_RIGHT,
             Action.TURN_LEFT: cls.SERVER_TURN_LEFT
         }.get(action)
+
+    @classmethod
+    def get_error_message(cls, message: bytes) -> Optional[str]:
+        return {
+            cls.SERVER_KEY_OUT_OF_RANGE_ERROR: "Key out of range",
+            cls.SERVER_SYNTAX_ERROR: "Syntax error",
+            cls.SERVER_LOGIN_FAILED: "Login failed",
+            cls.SERVER_LOGIC_ERROR: "Logic error"
+        }.get(message, None)
 
 
 arg_name = "message"

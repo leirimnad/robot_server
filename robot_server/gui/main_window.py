@@ -45,7 +45,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def on_disconnected(self):
         self.active_connections -= 1
-        self.activeConnectionsLabel.setText(str(self.c))
+        self.activeConnectionsLabel.setText(str(self.active_connections))
 
     def scroll_automatically(self):
         if self.auto_scroll:

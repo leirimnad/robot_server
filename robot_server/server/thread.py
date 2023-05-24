@@ -1,5 +1,7 @@
 import socket
 from threading import Thread
+from typing import Optional
+
 from transitions import Machine, State
 from .messages import ServerMessages, ClientMessage, ClientMessages
 from .map import RobotMap
@@ -89,6 +91,7 @@ class RobotThread(Thread):
 
         self.observers: list[RobotThreadObserver] = []
         self.message_in_process = None
+        self.error: Optional[str] = None
 
         self.machine = Machine(model=self, states=RobotThread.states, initial='wait_username',
                                after_state_change=self.on_state_change)
@@ -100,7 +103,7 @@ class RobotThread(Thread):
                                     conditions=ClientMessages.CLIENT_FULL_POWER.syntax_check,
                                     after=self.load_before_charging_state)
         self.machine.add_transition('process_message', 'recharging', 'error',
-                                    before=lambda **kwargs: self.send(ServerMessages.SERVER_LOGIC_ERROR))
+                                    before=lambda **kwargs: self.send_error(ServerMessages.SERVER_LOGIC_ERROR))
 
         self.machine.add_transition('process_message', 'wait_username', 'wait_key_id',
                                     conditions=ClientMessages.CLIENT_USERNAME.syntax_check,
@@ -111,7 +114,7 @@ class RobotThread(Thread):
                                     after=self.handle_correct_key_id)
         self.machine.add_transition('process_message', 'wait_key_id', 'error',
                                     conditions=ClientMessages.CLIENT_KEY_ID.syntax_check,
-                                    before=lambda **kwargs: self.send(ServerMessages.SERVER_KEY_OUT_OF_RANGE_ERROR))
+                                    before=lambda **kwargs: self.send_error(ServerMessages.SERVER_KEY_OUT_OF_RANGE_ERROR))
 
         self.machine.add_transition('process_message', 'wait_confirmation', 'wait_initial_client_ok',
                                     conditions=[ClientMessages.CLIENT_CONFIRMATION.syntax_check,
@@ -119,7 +122,7 @@ class RobotThread(Thread):
                                     after=self.handle_correct_confirmation)
         self.machine.add_transition('process_message', 'wait_confirmation', 'error',
                                     conditions=ClientMessages.CLIENT_CONFIRMATION.syntax_check,
-                                    before=lambda **kwargs: self.send(ServerMessages.SERVER_LOGIN_FAILED))
+                                    before=lambda **kwargs: self.send_error(ServerMessages.SERVER_LOGIN_FAILED))
 
         self.machine.add_transition('process_message', ['wait_initial_client_ok', 'wait_client_ok'], 'wait_message',
                                     conditions=ClientMessages.CLIENT_OK.unique_check,
@@ -134,7 +137,7 @@ class RobotThread(Thread):
 
         self.machine.add_transition('process_message',
                                     "*", 'error',
-                                    before=lambda **kwargs: self.send(ServerMessages.SERVER_SYNTAX_ERROR))
+                                    before=lambda **kwargs: self.send_error(ServerMessages.SERVER_SYNTAX_ERROR))
 
     def handle_correct_username(self, **kwargs):
         self.robot_username = ClientMessages.CLIENT_USERNAME.parse(**kwargs)
@@ -202,11 +205,11 @@ class RobotThread(Thread):
 
     def add_observer(self, observer: RobotThreadObserver):
         self.observers.append(observer)
-        observer.on_thread_event(StateUpdate(self.state))
+        observer.on_thread_event(StateUpdate(self.state, self.state in ["final", "error"], self.error))
 
     def on_state_change(self, **kwargs):
         for observer in self.observers:
-            observer.on_thread_event(StateUpdate(self.state))
+            observer.on_thread_event(StateUpdate(self.state, self.state in ["final", "error"], self.error))
 
     def send(self, bytestring: bytes):
         to_send = bytestring + self.end_sequence
@@ -215,6 +218,10 @@ class RobotThread(Thread):
         for observer in self.observers:
             observer.on_thread_event(MessageProcessed(self.message_in_process, bytestring, self.message_stack))
         self.message_in_process = None
+
+    def send_error(self, error: bytes):
+        self.error = ServerMessages.get_error_message(error)
+        self.send(error)
 
     def run(self):
         print(f"(+) Thread working with address {self.address}")
@@ -226,7 +233,8 @@ class RobotThread(Thread):
                 text = self.conn.recv(1024)
                 print(f"{self.address} >>> {text}")
                 if text == b"":
-                    self.conn.close()
+                    self.error = "Closed by client"
+                    self.to_error()
                     return
 
                 self.message_stack += text
@@ -239,6 +247,7 @@ class RobotThread(Thread):
                                                                                    end_sequence=self.end_sequence):
                     print(f"{self.address} used all length with message: {self.message_stack}")
                     self.send(ServerMessages.SERVER_SYNTAX_ERROR)
+                    self.error = f"Exceeded length"
                     self.to_error()
                     self.conn.close()
                     return
@@ -255,6 +264,7 @@ class RobotThread(Thread):
 
         except socket.timeout:
             print(f"{self.address} Timeout, disconnecting")
+            self.error = f"Timeout"
             self.to_error()
             try:
                 self.conn.close()

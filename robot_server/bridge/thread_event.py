@@ -19,8 +19,10 @@ class MessageProcessed(RobotThreadEvent):
 
 
 class StateUpdate(RobotThreadEvent):
-    def __init__(self, state_name: str):
+    def __init__(self, state_name: str, final: bool = False, error: Optional[Exception] = None):
         self.state_name = state_name
+        self.final = final
+        self.error = error
 
 
 class MapState:

@@ -88,16 +88,15 @@ class ThreadWidget(QtWidgets.QWidget, metaclass=ThreadWidgetMeta):
             self._add_message(message, response)
             self.on_message_stack_update(new_message_stack)
 
-    def on_state_update(self, state_name):
+    def on_state_update(self, state_name: str, final: bool, error_bool: bool, error: Optional[str]):
         new_category = StateCategory.from_state_name(state_name)
         self._category = new_category
 
-        if new_category == StateCategories.FINAL:
+        if final:
+            if error_bool:  # error bool is crazy, but signals return empty strings even when they are None
+                self._finish_with_error(error)
+                return
             self._finish()
-            return
-
-        if new_category == StateCategories.ERROR:
-            self._finish_with_error()
             return
 
         if new_category not in self._categories_log.keys():
@@ -154,9 +153,10 @@ class ThreadWidget(QtWidgets.QWidget, metaclass=ThreadWidgetMeta):
         for label in self._expected_categories_labels.values():
             label.setStyleSheet(self.label_skipped_stylesheet)
 
-    def _finish_with_error(self):
-        self.threadStateLabel.setText("Error")
+    def _finish_with_error(self, error: str):
+        self.threadStateLabel.setText(error)
         self.threadStateLabel.setStyleSheet("color: red;")
+        self.incomingMessageLabel.setStyleSheet("color: #b35b5b;")
         for label in self._expected_categories_labels.values():
             label.setStyleSheet(self.label_skipped_stylesheet)
 
