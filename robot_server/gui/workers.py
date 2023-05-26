@@ -18,11 +18,9 @@ class ServerWorker(QObject, RobotServerObserver, metaclass=ServerWorkerMeta):
         self._server.add_observer(self)
 
     def on_new_connection(self, robot_thread: RobotThread):
-        print("UI: New connection signal emitted")
         thread = QThread(None)
         thread_worker = ThreadWorker(robot_thread)
         thread_worker.moveToThread(thread)
-        print("UI: Thread worker up and running")
         self.new_connection.emit(thread_worker)
 
     def start(self):

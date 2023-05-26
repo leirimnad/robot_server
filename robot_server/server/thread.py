@@ -1,4 +1,5 @@
 import socket
+import logging
 from threading import Thread
 from typing import Optional
 
@@ -7,6 +8,8 @@ from .messages import ServerMessages, ClientMessage, ClientMessages
 from .map import RobotMap
 from .thread_observer import RobotThreadObserver
 from robot_server.bridge.thread_event import StateUpdate, MessageProcessed, MessageStackUpdate, MapUpdate
+
+logging.getLogger('transitions').setLevel(logging.WARNING)
 
 server_keys = {
     0: 23019,
@@ -174,7 +177,7 @@ class RobotThread(Thread):
     def finish(self):
         self.conn.close()
         self.stop_flag = True
-        print(f"{self.address} finished, stopping thread.")
+        logging.info(f"{self.address} finished, stopping thread.")
 
     def check_client_hash(self, **kwargs) -> bool:
         client_hash = ClientMessages.CLIENT_CONFIRMATION.parse(**kwargs)
@@ -213,7 +216,7 @@ class RobotThread(Thread):
 
     def send(self, bytestring: bytes):
         to_send = bytestring + self.end_sequence
-        print(f"{self.address} <<< {to_send}")
+        logging.info(f"{self.address} <<< {to_send}")
         self.conn.sendall(to_send)
         for observer in self.observers:
             observer.on_thread_event(MessageProcessed(self.message_in_process, bytestring, self.message_stack))
@@ -224,14 +227,14 @@ class RobotThread(Thread):
         self.send(error)
 
     def run(self):
-        print(f"(+) Thread working with address {self.address}")
+        logging.info(f"(+) Thread working with address {self.address}")
         self.conn.settimeout(TIMEOUT)
         try:
             while True:
                 if self.stop_flag:
                     return
                 text = self.conn.recv(1024)
-                print(f"{self.address} >>> {text}")
+                logging.info(f"{self.address} >>> {text}")
                 if text == b"":
                     self.error = "Closed by client"
                     self.to_error()
@@ -245,7 +248,7 @@ class RobotThread(Thread):
                 if not ClientMessages.matches_message(self.message_stack, self.end_sequence) \
                         and self.machine.get_state(self.state).exceeded_max_length(message=self.message_stack,
                                                                                    end_sequence=self.end_sequence):
-                    print(f"{self.address} used all length with message: {self.message_stack}")
+                    logging.info(f"{self.address} used all length with message: {self.message_stack}")
                     self.send(ServerMessages.SERVER_SYNTAX_ERROR)
                     self.error = f"Exceeded length"
                     self.to_error()
@@ -255,21 +258,21 @@ class RobotThread(Thread):
                 while ClientMessages.matches_message(self.message_stack, self.end_sequence):
                     message, rest = ClientMessages.parse_message(self.message_stack, self.end_sequence)
                     self.message_stack = rest
-                    print(f"{self.address} >=> {message}")
+                    logging.info(f"{self.address} >=> {message}")
                     trimmed_message = message[:-len(self.end_sequence)]
 
                     self.message_in_process = trimmed_message
                     self.process_message(message=trimmed_message)
-                    print(f"{self.address} () State now: {self.state}")
+                    logging.info(f"{self.address} () State now: {self.state}")
 
         except socket.timeout:
-            print(f"{self.address} Timeout, disconnecting")
+            logging.info(f"{self.address} Timeout, disconnecting")
             self.error = f"Timeout"
             self.to_error()
             try:
                 self.conn.close()
             except OSError:
-                print(f"{self.address} Couldn't disconnect, possibly did already")
+                logging.warning(f"{self.address} Couldn't disconnect, possibly did already")
             return
 
 
