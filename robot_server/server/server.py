@@ -1,3 +1,8 @@
+"""
+This module contains the RobotServer class, which is responsible for
+accepting new connections and creating RobotThread instances for them.
+"""
+
 import socket
 import select
 
@@ -6,6 +11,10 @@ from .thread import RobotThread
 
 
 class RobotServer:
+    """
+    Class for the server, which is responsible for accepting new connections
+    and creating RobotThread instances for them.
+    """
     def __init__(self, host, port):
         self.host = host
         self.port = port
@@ -14,12 +23,23 @@ class RobotServer:
         self._stopping = False
 
     def add_observer(self, observer: RobotServerObserver):
+        """
+        Add an observer to the server.
+        :param observer: The observer to add.
+        """
         self.observers.append(observer)
 
     def remove_observer(self, observer: RobotServerObserver):
+        """
+        Remove an observer from the server.
+        :param observer: The observer to remove.
+        """
         self.observers.remove(observer)
 
     def start(self):
+        """
+        Starts the server.
+        """
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server_socket.bind((self.host, self.port))
         server_socket.listen()
@@ -29,10 +49,10 @@ class RobotServer:
         while not self._stopping:
             try:
                 readable, _, _ = select.select(inputs, [], [], 1)
-                for s in readable:
+                for readable_socket in readable:
                     if self._stopping:
                         break
-                    conn, addr = s.accept()
+                    conn, addr = readable_socket.accept()
                     thread = RobotThread(conn, addr)
                     self.threads.append(thread)
                     for observer in self.observers:
@@ -41,12 +61,15 @@ class RobotServer:
             except OSError:
                 if self._stopping:
                     break
-                else:
-                    raise
+                raise
             except KeyboardInterrupt:
                 self._stopping = True
                 break
 
     def stop(self):
+        """
+        Stops the server.
+        Sets the state of all threads to final.
+        """
         for thread in self.threads:
             thread.to_final()
