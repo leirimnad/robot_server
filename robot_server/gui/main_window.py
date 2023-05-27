@@ -5,6 +5,7 @@ Main window for the robot server GUI.
 from pathlib import Path
 
 from PyQt5 import QtWidgets
+from PyQt5.QtGui import QIcon
 from PyQt5 import uic
 
 from robot_server.gui.thread_widget import ThreadWidget
@@ -29,6 +30,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.vbar.rangeChanged.connect(self.scroll_automatically)
         self.vbar.valueChanged.connect(self.on_scroll_value_changed)
         self.autoScrollCheckBox.stateChanged.connect(self.on_auto_scroll_checkbox_changed)
+        self.setWindowTitle("Robot Server")
+        icon_path = Path(__file__).parent / "resources" / "images" / "robot_icon.png"
+        self.setWindowIcon(QIcon(str(icon_path)))
 
     def on_new_connection(self, thread_worker: ThreadWorker):
         """
