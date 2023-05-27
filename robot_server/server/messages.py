@@ -72,11 +72,14 @@ ARG_NAME = "message"
 class RegexCheck:
     """
     Class for a regex check on messages.
+
+    :param regex: The regex to check.
+    :param unless: Whether the check should be inverted.
+    :param full_match: If False, test string could contain additional characters at the end
     """
     regex: bytes
     unless: bool = False
     full_match: bool = True
-    end_sequence: bytes = br"\a\b"
 
     def test(self, **kwargs):
         """
@@ -230,7 +233,7 @@ class ClientMessages:
         return re.match(br"^.*?" + end_sequence, message) is not None
 
     @staticmethod
-    def parse_message(message: bytes, end_sequence: bytes):
+    def parse_message(message: bytes, end_sequence: bytes) -> tuple[bytes, bytes]:
         """
         Returns the parsed message and the rest of the bytestring.
 
