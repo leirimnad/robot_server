@@ -132,3 +132,20 @@ def test_recharging_timeout(authorized_client):
     authorized_client.sendall(b"RECHARGING\a\b")
     time.sleep(5.1)
     assert authorized_client.recv(1024) == b""
+
+
+def test_logic_error(authorized_client):
+    authorized_client.sendall(b"OK 0 -2\a\b")
+    assert authorized_client.recv(1024) == b"102 MOVE\a\b"
+    authorized_client.sendall(b"RECHARGING\a\b")
+    time.sleep(0.1)
+    authorized_client.sendall(b"OK 0 -1\a\b")
+    assert authorized_client.recv(1024) == b"302 LOGIC ERROR\a\b"
+
+
+def test_syntax_length_error(authorized_client):
+    authorized_client.sendall(b"OK ")
+    authorized_client.sendall(b"4 ")
+    authorized_client.sendall(b"4 ")
+    authorized_client.sendall(b"2124124 ")
+    assert authorized_client.recv(1024) == b"301 SYNTAX ERROR\a\b"
