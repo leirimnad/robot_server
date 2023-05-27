@@ -88,15 +88,15 @@ class MapState:
     def __init__(self,
                  position: tuple,
                  rotation: Rotation,
-                 banned_positions: list[tuple[int, int]]):
+                 obstacles: list[tuple[int, int]]):
         """
         :param position: The position of the robot.
         :param rotation: The rotation of the robot.
-        :param banned_positions: The positions that are banned for the robot.
+        :param obstacles: The obstacles on the map.
         """
         self.position = position
         self.rotation = rotation
-        self.banned_positions = banned_positions
+        self.obstacles = obstacles
 
 
 @dataclass

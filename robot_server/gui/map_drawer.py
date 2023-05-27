@@ -45,7 +45,7 @@ class MapDrawer:
         if self._previous_position is not None:
             self._draw_path(*self._previous_position, *map_state.position)
 
-        for x, y in map_state.banned_positions:
+        for x, y in map_state.obstacles:
             self._draw_obstacle(x, y)
 
         self._previous_position = map_state.position
