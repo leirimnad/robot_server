@@ -1,7 +1,5 @@
 ## Robot Control Server
 
-Describe a function of developed application, necessary dependencies (e.g. utilize requirements.txt), how to start it, and last but not least how to run tests from CLI.
-
 Robot Control Server is a server application for guiding robots on a simplified map. \
 The process of controlling the robot consists of authentication and guiding the robot to the `(0, 0)` coordinate. \
 The application starts a separate thread for each robot. \
