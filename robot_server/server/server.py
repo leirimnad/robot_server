@@ -21,6 +21,7 @@ class RobotServer:
         self.threads = []
         self.observers: list[RobotServerObserver] = []
         self._stopping = False
+        self._server_socket = None
 
     def add_observer(self, observer: RobotServerObserver):
         """
@@ -40,12 +41,12 @@ class RobotServer:
         """
         Starts the server.
         """
-        server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        server_socket.bind((self.host, self.port))
-        server_socket.listen()
+        self._server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self._server_socket.bind((self.host, self.port))
+        self._server_socket.listen()
         print(f"Started server on {self.host}, port {self.port}")
 
-        inputs = [server_socket]
+        inputs = [self._server_socket]
         while not self._stopping:
             try:
                 readable, _, _ = select.select(inputs, [], [], 1)
@@ -63,8 +64,7 @@ class RobotServer:
                     break
                 raise
             except KeyboardInterrupt:
-                self._stopping = True
-                break
+                self.stop()
 
     def stop(self):
         """
@@ -73,3 +73,5 @@ class RobotServer:
         """
         for thread in self.threads:
             thread.to_final()
+        self._stopping = True
+        self._server_socket.close()

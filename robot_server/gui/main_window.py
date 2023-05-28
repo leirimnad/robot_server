@@ -5,7 +5,8 @@ Main window for the robot server GUI.
 from pathlib import Path
 
 from PyQt5 import QtWidgets
-from PyQt5.QtGui import QIcon
+from PyQt5.QtCore import pyqtSignal
+from PyQt5.QtGui import QIcon, QCloseEvent
 from PyQt5 import uic
 
 from robot_server.gui.thread_widget import ThreadWidget
@@ -16,6 +17,7 @@ class MainWindow(QtWidgets.QMainWindow):
     """
     Class for creating and controlling the main window of the robot server GUI.
     """
+    closed = pyqtSignal(name="closed")
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -94,3 +96,11 @@ class MainWindow(QtWidgets.QMainWindow):
         else:
             self.auto_scroll = False
             self.autoScrollCheckBox.setChecked(False)
+
+    def closeEvent(self, a0: QCloseEvent) -> None:
+        """
+        Called when the window is closed.
+        Calls the closeEvent method of all the thread widgets.
+        """
+        self.closed.emit()
+        super().closeEvent(a0)

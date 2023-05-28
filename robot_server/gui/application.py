@@ -41,6 +41,7 @@ class RobotServerApplication:
         """
         self._main_window.show()
         self._server_worker = ServerWorker(self._robot_server)
+        self._main_window.closed.connect(self._server_worker.stop)
         self._server_thread = QThread()
         self._server_worker.moveToThread(self._server_thread)
         self._server_thread.started.connect(self._server_worker.start)

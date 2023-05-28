@@ -24,6 +24,7 @@ class ServerWorker(QObject, RobotServerObserver, metaclass=ServerWorkerMeta):
     when a new connection is made.
     """
     new_connection = pyqtSignal(object, name="newConnection")
+    finished = pyqtSignal(name="finished")
 
     def __init__(self, server: RobotServer):
         """
@@ -50,6 +51,12 @@ class ServerWorker(QObject, RobotServerObserver, metaclass=ServerWorkerMeta):
         Starts the server.
         """
         self._server.start()
+
+    def stop(self):
+        """
+        Calls the stop method of the server.
+        """
+        self._server.stop()
 
 
 class ThreadWorkerMeta(type(RobotThreadObserver), type(QObject)):
