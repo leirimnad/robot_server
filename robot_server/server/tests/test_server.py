@@ -4,8 +4,9 @@ import time
 from robot_server.server import RobotServer
 import pytest
 import threading
+from random import randrange
 
-HOST, PORT = "127.0.0.1", 61112
+HOST, PORT = "127.0.0.1", randrange(49152, 65535)
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -14,6 +15,7 @@ def server():
     thread = threading.Thread(target=server.start)
     thread.daemon = True
     thread.start()
+    time.sleep(0.1)
     yield
     server.stop()
 
@@ -21,6 +23,7 @@ def server():
 @pytest.fixture(scope="function")
 def client(server):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    time.sleep(0.1)
     s.connect((HOST, PORT))
     yield s
     s.close()
