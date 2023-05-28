@@ -43,6 +43,10 @@ class MainWindow(QtWidgets.QMainWindow):
         """
         self.active_connections += 1
         self.total_connections += 1
+
+        if self.total_connections > 0:
+            self.noConnectionsLabel.hide()
+
         widget = ThreadWidget()
 
         thread_worker.message_stack_update.connect(widget.on_message_stack_update)
