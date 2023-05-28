@@ -22,8 +22,6 @@ pip install -r requirements.txt
 
 ### Usage
 
-**Common cases:**
-
 Run server in CLI on address `127.0.0.1`, port `61111`:
 ```bash
 python -m robot_server 61111
